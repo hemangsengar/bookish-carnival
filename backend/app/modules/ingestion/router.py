@@ -1,18 +1,34 @@
-from fastapi import APIRouter
-from pydantic import BaseModel
+from fastapi import APIRouter, Depends, status
 
-router = APIRouter(prefix="/ingestion", tags=["ingestion"])
+from app.core.security import require_roles, require_service_api_key
+from app.modules.ingestion.dependencies import get_ingestion_service
+from app.modules.ingestion.schemas import IngestionListResponse, IngestionJob, IngestionRequest
+from app.modules.ingestion.service import IngestionService
+
+router = APIRouter(
+    prefix="/ingestion",
+    tags=["ingestion"],
+    dependencies=[Depends(require_service_api_key)],
+)
 
 
-class IngestionRequest(BaseModel):
-    source: str
-    payload_type: str
+@router.post(
+    "/jobs",
+    summary="Create ingestion job",
+    status_code=status.HTTP_201_CREATED,
+    response_model=IngestionJob,
+)
+def create_ingestion_job(
+    request: IngestionRequest,
+    actor_role: str = Depends(require_roles("engineer", "analyst")),
+    service: IngestionService = Depends(get_ingestion_service),
+) -> IngestionJob:
+    return service.create_job(request=request, actor_role=actor_role)
 
 
-@router.post("/jobs", summary="Create ingestion job")
-def create_ingestion_job(request: IngestionRequest) -> dict[str, str]:
-    return {
-        "message": "Ingestion job accepted",
-        "source": request.source,
-        "payload_type": request.payload_type,
-    }
+@router.get("/jobs", summary="List ingestion jobs", response_model=IngestionListResponse)
+def list_ingestion_jobs(
+    _: str = Depends(require_roles("engineer", "analyst", "compliance", "business")),
+    service: IngestionService = Depends(get_ingestion_service),
+) -> IngestionListResponse:
+    return IngestionListResponse(items=service.list_jobs())
