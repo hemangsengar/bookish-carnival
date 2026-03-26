@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AI Secure Data Intelligence Platform</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="container">
+      <header>
+        <h1>AI Secure Data Intelligence Platform</h1>
+        <p>AI Gateway + Scanner + Log Analyzer + Risk Engine</p>
+      </header>
+
+      <section class="card">
+        <h2>Analyze Content</h2>
+        <div class="grid">
+          <label>
+            Input Type
+            <select id="inputType">
+              <option value="text">text</option>
+              <option value="log" selected>log</option>
+              <option value="sql">sql</option>
+              <option value="chat">chat</option>
+              <option value="file">file</option>
+            </select>
+          </label>
+
+          <label>
+            Upload (.log/.txt)
+            <input id="fileInput" type="file" accept=".log,.txt,.pdf,.doc,.docx,.txt" />
+          </label>
+        </div>
+
+        <label>
+          Content
+          <textarea id="content" rows="10" placeholder="Paste logs, SQL, chat, or text here..."></textarea>
+        </label>
+
+        <div class="options">
+          <label><input id="mask" type="checkbox" checked /> Mask sensitive findings</label>
+          <label><input id="blockHighRisk" type="checkbox" checked /> Block high risk</label>
+          <label><input id="logAnalysis" type="checkbox" checked /> Log analysis mode</label>
+        </div>
+
+        <button id="analyzeBtn">Analyze</button>
+      </section>
+
+      <section class="card">
+        <h2>Insights</h2>
+        <div id="summary"></div>
+        <div class="kpis" id="kpis"></div>
+        <ul id="insights"></ul>
+      </section>
+
+      <section class="card">
+        <h2>Findings</h2>
+        <table>
+          <thead>
+            <tr><th>Type</th><th>Risk</th><th>Line</th><th>Value</th></tr>
+          </thead>
+          <tbody id="findingsTable"></tbody>
+        </table>
+      </section>
+
+      <section class="card">
+        <h2>Sanitized Preview</h2>
+        <pre id="preview"></pre>
+      </section>
+
+      <section class="card">
+        <h2>Log Visualization</h2>
+        <pre id="visualization"></pre>
+      </section>
+    </main>
+
+    <script src="/app.js"></script>
+  </body>
+</html>
