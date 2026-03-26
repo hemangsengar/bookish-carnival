@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 
+from app.modules.analyze.router import router as analyze_router
 from app.modules.audit.router import router as audit_router
 from app.modules.alerts.router import router as alerts_router
 from app.modules.analytics.router import router as analytics_router
@@ -16,6 +17,7 @@ def create_app() -> FastAPI:
     )
 
     app.include_router(health_router)
+    app.include_router(analyze_router)
     app.include_router(ingestion_router)
     app.include_router(analytics_router)
     app.include_router(policy_router)
