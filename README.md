@@ -1,37 +1,52 @@
 # AI Secure Data Intelligence Platform
 
-Security-first, on-prem/private-cloud data intelligence platform with a FastAPI backend.
+End-to-end AI Gateway + Scanner + Log Analyzer + Risk Engine with FastAPI APIs and a Vercel-ready web UI.
 
 ## Current implementation status
 
-This repository now contains a **functional MVP backend**:
+This repository now contains a **functional end-to-end MVP**:
 
-- Modular FastAPI service with domain-level APIs
-- End-to-end ingestion pipeline:
-  - ingestion job creation
-  - policy evaluation
-  - alert generation
-  - analytics KPI updates
-  - audit trail emission
-- Role-based authorization using request headers
-- Environment-based settings and policy thresholds
-- Docker + docker-compose for local/private-cloud style deployment
-- Automated tests covering health, auth, ingestion workflow, alerts, policy, analytics, and audit events
+- FastAPI service with security, policy, alerting, analytics, and audit modules
+- Unified `/analyze` API for multi-input analysis:
+  - text
+  - sql
+  - chat
+  - logs
+  - file upload (`.log`, `.txt`, and general text extraction)
+- Detection engine for:
+  - emails
+  - phone numbers
+  - API keys
+  - passwords
+  - tokens
+  - stack traces
+  - failed-login patterns
+- Risk engine with risk score/level + policy actions (`allowed`, `masked`, `blocked`)
+- AI-style insights generation (pattern-based, explainable)
+- Frontend web app for upload, findings table, sanitized preview, and log visualization
+- Vercel deployment config for static frontend + Python API runtime
+- Automated tests for analyze endpoints and incident workflow
 
 ## Repository structure
 
 - `backend/app/main.py` — FastAPI entrypoint and router wiring
 - `backend/app/core/config.py` — environment-driven application settings
 - `backend/app/core/security.py` — API key and role-based guards
-- `backend/app/modules/*` — domain modules
+- `backend/app/modules/*` — domain modules including analyze/log intelligence
 - `backend/tests/` — API tests
+- `public/` — Vercel-served frontend UI
+- `api/index.py` — Vercel Python entrypoint
+- `vercel.json` — Vercel routing and build configuration
 - `docker-compose.yml` — local stack (API + PostgreSQL + Redis)
 
 ## Quick start
 
-1. Create your environment values using `.env` (already scaffolded).
-2. Start with Docker Compose.
-3. Open API docs at `http://localhost:8000/docs`.
+1. Create your environment values using `.env`.
+2. Create environment: `python3 -m venv .venv`
+3. Install dependencies: `./.venv/bin/python -m pip install -r backend/requirements.txt`
+4. Run API locally: `cd backend && ../.venv/bin/python -m uvicorn app.main:app --reload`
+5. Open API docs at `http://localhost:8000/docs`
+6. Open UI at `http://localhost:8000` (if serving static separately) or use Vercel preview.
 
 ### Local test run
 
@@ -50,8 +65,12 @@ Protected endpoints use:
 - Header: `x-user-role`
 - Supported roles: `engineer`, `analyst`, `compliance`, `business`
 
+`/analyze` endpoints are intentionally open for hackathon-style evaluation unless you add gateway-level auth.
+
 ### Implemented API surface
 
+- `POST /analyze`
+- `POST /analyze/file`
 - `GET /health`
 - `POST /ingestion/jobs`
 - `GET /ingestion/jobs`
@@ -70,10 +89,54 @@ Protected endpoints use:
 - `records_count >= POLICY_RECORDS_THRESHOLD` => policy violation generated
 - high/critical violations automatically create open alerts
 
-## Next implementation milestones
+### `/analyze` request format
 
-1. Replace in-memory state with persistent storage (PostgreSQL + migrations)
-2. Replace header-based roles with OIDC/SAML and enterprise RBAC
-3. Add asynchronous processing workers and queue-backed ingestion
-4. Add observability stack (metrics/tracing/log shipping)
-5. Add compliance exports and reporting views
+```json
+{
+  "input_type": "text | file | sql | chat | log",
+  "content": "...",
+  "options": {
+    "mask": true,
+    "block_high_risk": true,
+    "log_analysis": true
+  }
+}
+```
+
+### `/analyze` response shape
+
+- `summary`
+- `content_type`
+- `findings[]` (type, risk, line, value)
+- `risk_score`
+- `risk_level`
+- `action`
+- `insights[]`
+- `sanitized_preview`
+
+## Deploy on Vercel
+
+This repository is configured for Vercel:
+
+- `public/*` serves frontend
+- `/api/*` routes to `api/index.py` (FastAPI ASGI app)
+
+### Vercel setup
+
+1. Import this repository in Vercel.
+2. Configure environment variables if needed (`POLICY_RECORDS_THRESHOLD`, etc.).
+3. Deploy.
+
+After deploy:
+
+- Web UI: `/`
+- API docs: `/api/docs`
+- Analyze endpoint: `/api/analyze`
+
+## Next recommended hardening steps
+
+1. Persist platform store into PostgreSQL with migrations
+2. Replace header-based roles with OIDC/SAML + JWT verification
+3. Add rate limiting and request size limits for large file uploads
+4. Add model-backed anomaly scoring for advanced insights
+5. Add OpenTelemetry traces, metrics, and SIEM-forward audit export
