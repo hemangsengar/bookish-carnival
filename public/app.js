@@ -35,11 +35,31 @@ function renderResult(result, originalContent) {
   `;
 
   insightsEl.innerHTML = '';
-  result.insights.forEach((insight) => {
+  const cards = result.insight_cards && result.insight_cards.length > 0
+    ? result.insight_cards
+    : (result.insights || []).map((insight) => ({
+        title: insight,
+        severity: result.risk_level,
+        impact: insight,
+        recommendation: 'Review and remediate based on finding context.',
+      }));
+
+  cards.forEach((card) => {
     const li = document.createElement('li');
-    li.textContent = insight;
+    li.innerHTML = `<strong>${card.title}</strong> <span class="${riskClass(card.severity)}">(${card.severity})</span><br/>${card.impact}<br/><em>Action:</em> ${card.recommendation}`;
     insightsEl.appendChild(li);
   });
+
+  if (result.recommended_actions && result.recommended_actions.length > 0) {
+    const divider = document.createElement('li');
+    divider.innerHTML = '<strong>Recommended next actions:</strong>';
+    insightsEl.appendChild(divider);
+    result.recommended_actions.forEach((action) => {
+      const li = document.createElement('li');
+      li.textContent = `• ${action}`;
+      insightsEl.appendChild(li);
+    });
+  }
 
   findingsTable.innerHTML = '';
   result.findings.forEach((finding) => {

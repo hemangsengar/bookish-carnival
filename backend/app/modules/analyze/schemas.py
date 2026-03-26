@@ -30,6 +30,14 @@ class Finding(BaseModel):
     value: str | None = None
 
 
+class InsightCard(BaseModel):
+    title: str
+    severity: RiskLevel
+    impact: str
+    evidence: list[str]
+    recommendation: str
+
+
 class AnalyzeResponse(BaseModel):
     summary: str
     content_type: str
@@ -38,4 +46,6 @@ class AnalyzeResponse(BaseModel):
     risk_level: RiskLevel
     action: str
     insights: list[str]
+    insight_cards: list[InsightCard] = []
+    recommended_actions: list[str] = []
     sanitized_preview: str | None = None
