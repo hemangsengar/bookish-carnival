@@ -8,126 +8,107 @@
   </head>
   <body>
     <main class="container">
-      <header class="hero card">
-        <div>
-          <p class="eyebrow">Security Intelligence Console</p>
-          <h1>AI Secure Data Intelligence Platform</h1>
-          <p class="subtitle">AI Gateway + Scanner + Log Analyzer + Risk Engine</p>
-        </div>
-        <span class="status-pill">Live Analysis</span>
-      </header>
-
-      <section class="layout-grid">
-        <section class="card analyzer-card">
-          <div class="title-row">
-            <h2>Analyze Content</h2>
-            <span class="subtle-chip">Step 1 of 2</span>
+      <section class="hero-shell">
+        <div class="hero-spotlight" aria-hidden="true"></div>
+        <div class="hero-beams" aria-hidden="true"></div>
+        <header class="hero card">
+          <div>
+            <p class="eyebrow">Secure Log & Data Risk Analysis Console</p>
+            <h1>AI Secure Data Intelligence Platform</h1>
+            <p class="subtitle">Detect sensitive data exposure, policy violations, and security risks across logs, SQL, chat, and uploaded files with clear remediation recommendations.</p>
           </div>
+          <span id="resultBadge" class="status-pill">Awaiting analysis</span>
+        </header>
+      </section>
 
+      <section class="card analyzer-card file-upload-card">
+        <div class="title-row">
+          <h2>Analyze Input</h2>
           <div class="template-row" id="templateRow">
-            <button type="button" class="ghost-btn template-btn" data-type="log" data-template="2026-03-10 INFO login email=admin@company.com password=admin123 api_key=sk-prod-xyz ERROR stack trace: NullPointerException at service.java:45">Risky Log Sample</button>
-            <button type="button" class="ghost-btn template-btn" data-type="sql" data-template="SELECT * FROM users WHERE email='alice@company.com' AND password='plaintext123';">SQL Leak Sample</button>
-            <button type="button" class="ghost-btn template-btn" data-type="chat" data-template="Hi team, my token=ghp_ABC123XYZ and temporary password=Welcome@123 for staging access.">Chat Leak Sample</button>
+            <button type="button" class="ghost-btn template-btn" data-type="log" data-template="2026-03-10 INFO login email=admin@company.com password=admin123 api_key=sk-prod-xyz ERROR stack trace: NullPointerException at service.java:45">Log sample</button>
+            <button type="button" class="ghost-btn template-btn" data-type="sql" data-template="SELECT * FROM users WHERE email='alice@company.com' AND password='plaintext123';">SQL sample</button>
           </div>
+        </div>
 
-          <div class="grid">
-            <label class="field">
-              Input Type
-              <select id="inputType">
-                <option value="text">text</option>
-                <option value="log" selected>log</option>
-                <option value="sql">sql</option>
-                <option value="chat">chat</option>
-                <option value="file">file</option>
-              </select>
-            </label>
-
-            <label class="field">
-              Upload file
-              <input id="fileInput" type="file" accept=".log,.txt,.pdf,.doc,.docx,.txt" />
-            </label>
-          </div>
-
-          <div id="dropZone" class="drop-zone" role="button" tabindex="0" aria-label="Drop file here to analyze">
-            <p><strong>Drag & drop your file here</strong> or use the file picker above</p>
-            <span id="dropHint">Supported: .log, .txt, .pdf, .docx</span>
-          </div>
-
+        <div class="grid compact-grid">
           <label class="field">
-            Content
-            <textarea id="content" rows="12" placeholder="Paste logs, SQL, chat, or text here..."></textarea>
-            <span class="helper-text"><span id="charCount">0</span> characters • Tip: include raw errors for better correlation insight.</span>
+            Input Type
+            <select id="inputType">
+              <option value="text">text</option>
+              <option value="log" selected>log</option>
+              <option value="sql">sql</option>
+              <option value="chat">chat</option>
+              <option value="file">file</option>
+            </select>
           </label>
 
-          <div class="options">
-            <label><input id="mask" type="checkbox" checked /> Mask sensitive findings</label>
-            <label><input id="blockHighRisk" type="checkbox" checked /> Block high risk</label>
-            <label><input id="logAnalysis" type="checkbox" checked /> Log analysis mode</label>
-          </div>
-
-          <div class="action-row">
-            <button id="analyzeBtn">Analyze</button>
-            <button id="clearBtn" type="button" class="ghost-btn">Clear</button>
-            <button id="copyResultBtn" type="button" class="ghost-btn">Copy JSON</button>
-          </div>
-        </section>
-
-        <aside class="card helper-card">
-          <div class="title-row">
-            <h2>Operator Guide</h2>
-            <span class="subtle-chip">Step 2 of 2</span>
-          </div>
-          <ol class="guide-list">
-            <li>Choose input type and upload/paste content.</li>
-            <li>Analyze and inspect risk score + severity cards.</li>
-            <li>Start with recommended actions before sharing output.</li>
-          </ol>
-          <div class="tip-box">
-            <strong>Best practice</strong>
-            <p>Use masked output for tickets and chat channels. Keep raw artifacts restricted to security responders.</p>
-          </div>
-          <div class="legend">
-            <span class="legend-item risk-critical">Critical = immediate containment</span>
-            <span class="legend-item risk-high">High = urgent remediation</span>
-            <span class="legend-item risk-medium">Medium = scheduled fix</span>
-            <span class="legend-item risk-low">Low = monitor and harden</span>
-          </div>
-        </aside>
-      </section>
-
-      <section class="card">
-        <div class="title-row">
-          <h2>Insights</h2>
-          <span id="resultBadge" class="subtle-chip">Awaiting analysis</span>
+          <label class="field">
+            Upload file
+            <input id="fileInput" type="file" accept=".log,.txt,.pdf,.doc,.docx,.txt" />
+          </label>
         </div>
-        <div id="summary" class="summary"></div>
-        <div class="kpis" id="kpis"></div>
-        <ul id="insights" class="insights-list"></ul>
-      </section>
 
-      <section class="card">
-        <h2>Findings</h2>
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr><th>Type</th><th>Risk</th><th>Line</th><th>Value</th></tr>
-            </thead>
-            <tbody id="findingsTable"></tbody>
-          </table>
+        <div id="dropZone" class="drop-zone" role="button" tabindex="0" aria-label="Drop file here to analyze">
+          <div class="upload-icon" aria-hidden="true">⬆</div>
+          <p><strong>Drag and drop file</strong> or click to browse</p>
+          <span id="dropHint">Supported: .log, .txt, .pdf, .docx</span>
+        </div>
+
+        <label class="field">
+          Content
+          <textarea id="content" rows="10" placeholder="Paste logs, SQL, chat, or text here..."></textarea>
+          <span class="helper-text"><span id="charCount">0</span> characters</span>
+        </label>
+
+        <div class="options">
+          <label><input id="mask" type="checkbox" checked /> Mask sensitive output</label>
+          <label><input id="blockHighRisk" type="checkbox" checked /> Block high risk</label>
+          <label><input id="logAnalysis" type="checkbox" checked /> Enable log mode</label>
+        </div>
+
+        <div class="action-row">
+          <button id="analyzeBtn" class="moving-btn">Analyze</button>
+          <button id="clearBtn" type="button" class="ghost-btn">Clear</button>
+          <button id="copyResultBtn" type="button" class="ghost-btn">Copy JSON</button>
         </div>
       </section>
 
-      <section class="card">
-        <h2>Sanitized Preview</h2>
-        <div class="action-row mini-row">
-          <button id="copyPreviewBtn" type="button" class="ghost-btn">Copy Preview</button>
-        </div>
-        <pre id="preview"></pre>
-      </section>
+      <section class="bento-grid">
+        <article class="card bento-item bento-overview">
+          <h2>Overview</h2>
+          <div id="summary" class="summary"></div>
+          <div class="kpis" id="kpis"></div>
+        </article>
 
-      <section class="card">
-        <h2>Log Visualization</h2>
-        <pre id="visualization"></pre>
+        <article class="card bento-item bento-insights">
+          <h2>Insights & Recommended Actions</h2>
+          <ul id="insights" class="insights-list"></ul>
+        </article>
+
+        <article class="card bento-item bento-findings">
+          <h2>Findings</h2>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr><th>Type</th><th>Risk</th><th>Line</th><th>Value</th></tr>
+              </thead>
+              <tbody id="findingsTable"></tbody>
+            </table>
+          </div>
+        </article>
+
+        <article class="card bento-item bento-preview">
+          <div class="title-row compact-title">
+            <h2>Sanitized Preview</h2>
+            <button id="copyPreviewBtn" type="button" class="ghost-btn">Copy Preview</button>
+          </div>
+          <pre id="preview"></pre>
+        </article>
+
+        <article class="card bento-item bento-visualization">
+          <h2>Log Visualization</h2>
+          <pre id="visualization"></pre>
+        </article>
       </section>
     </main>
 

@@ -61,16 +61,19 @@ function renderResult(result, originalContent) {
 
   cards.forEach((card) => {
     const li = document.createElement('li');
+    li.classList.add('insight-card');
     li.innerHTML = `<strong>${card.title}</strong> <span class="${riskClass(card.severity)}">(${card.severity.toUpperCase()})</span><br/>${card.impact}<br/><em>Action:</em> ${card.recommendation}`;
     insightsEl.appendChild(li);
   });
 
   if (result.recommended_actions && result.recommended_actions.length > 0) {
     const divider = document.createElement('li');
+    divider.classList.add('insight-action');
     divider.innerHTML = '<strong>Recommended next actions:</strong>';
     insightsEl.appendChild(divider);
     result.recommended_actions.forEach((action) => {
       const li = document.createElement('li');
+      li.classList.add('insight-action');
       li.textContent = `• ${action}`;
       insightsEl.appendChild(li);
     });
@@ -100,7 +103,7 @@ function setEmptyState() {
     <div>Action<br /><strong>—</strong></div>
     <div>Findings<br /><strong>0</strong></div>
   `;
-  insightsEl.innerHTML = '<li>Insight cards will appear here after analysis.</li>';
+  insightsEl.innerHTML = '<li class="insight-action">Insight cards will appear here after analysis.</li>';
   findingsTable.innerHTML = '';
   previewEl.textContent = '';
   visualizationEl.textContent = '';
