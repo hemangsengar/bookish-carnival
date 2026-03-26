@@ -22,7 +22,7 @@ This repository now contains a **functional end-to-end MVP**:
   - stack traces
   - failed-login patterns
 - Risk engine with risk score/level + policy actions (`allowed`, `masked`, `blocked`)
-- AI-style insights generation (pattern-based, explainable)
+- Hybrid insights generation: deterministic rules + optional Gemini contextual intelligence
 - Frontend web app for upload, findings table, sanitized preview, and log visualization
 - Vercel deployment config for static frontend + Python API runtime
 - Automated tests for analyze endpoints and incident workflow
@@ -112,7 +112,28 @@ Protected endpoints use:
 - `risk_level`
 - `action`
 - `insights[]`
+- `insight_cards[]` (title, severity, impact, evidence, recommendation)
+- `recommended_actions[]`
 - `sanitized_preview`
+
+## Gemini-powered analysis (optional)
+
+The analyzer supports Gemini for richer, more actionable security insights.
+
+If Gemini is enabled and reachable, it can enhance:
+
+- executive-quality risk summary
+- impact framing with evidence-based context
+- prioritized remediation recommendations
+
+If Gemini fails or returns malformed output, the deterministic engine remains active and responses still succeed.
+
+### Gemini environment variables
+
+- `GEMINI_ENABLED=true`
+- `GEMINI_API_KEY=your-gemini-api-key`
+- `GEMINI_MODEL=gemini-1.5-flash`
+- `GEMINI_TIMEOUT_SECONDS=12`
 
 ## Deploy on Vercel
 

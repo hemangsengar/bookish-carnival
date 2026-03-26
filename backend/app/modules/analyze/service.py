@@ -1,5 +1,6 @@
 import re
 from collections import Counter, defaultdict
+from typing import Any
 
 from app.modules.analyze.schemas import AnalyzeOptions, AnalyzeResponse, Finding, InsightCard, RiskLevel
 
@@ -52,6 +53,9 @@ INSIGHT_TEMPLATES: dict[str, str] = {
 
 
 class AnalyzeService:
+    def __init__(self, gemini_client: Any | None = None) -> None:
+        self.gemini_client = gemini_client
+
     def analyze(self, input_type: str, content: str, options: AnalyzeOptions) -> AnalyzeResponse:
         findings = self._detect_findings(content=content, input_type=input_type, log_analysis=options.log_analysis)
         risk_score = sum(RISK_SCORES[finding.risk] for finding in findings)
@@ -69,6 +73,17 @@ class AnalyzeService:
         sanitized_preview = self._sanitize_content(content, findings) if options.mask and findings else content[:1200]
         recommended_actions = self._build_recommended_actions(insight_cards=insight_cards, action=action)
 
+        summary, insight_cards, recommended_actions = self._try_gemini_enhancement(
+            input_type=input_type,
+            content=content,
+            findings=findings,
+            risk_level=risk_level,
+            deterministic_summary=summary,
+            deterministic_cards=insight_cards,
+            deterministic_actions=recommended_actions,
+        )
+        insights = [card.title for card in insight_cards]
+
         return AnalyzeResponse(
             summary=summary,
             content_type=input_type,
@@ -81,6 +96,94 @@ class AnalyzeService:
             recommended_actions=recommended_actions,
             sanitized_preview=sanitized_preview,
         )
+
+    def _try_gemini_enhancement(
+        self,
+        input_type: str,
+        content: str,
+        findings: list[Finding],
+        risk_level: RiskLevel,
+        deterministic_summary: str,
+        deterministic_cards: list[InsightCard],
+        deterministic_actions: list[str],
+    ) -> tuple[str, list[InsightCard], list[str]]:
+        if self.gemini_client is None:
+            return deterministic_summary, deterministic_cards, deterministic_actions
+
+        payload = {
+            "input_type": input_type,
+            "risk_level": risk_level.value,
+            "findings": [
+                {"type": f.type, "risk": f.risk.value, "line": f.line, "value": f.value} for f in findings[:80]
+            ],
+            "preview": content[:1500],
+        }
+
+        result = self.gemini_client.generate_contextual_analysis(payload)
+        if not result:
+            return deterministic_summary, deterministic_cards, deterministic_actions
+
+        summary = result.get("summary")
+        cards_payload = result.get("insight_cards")
+        actions_payload = result.get("recommended_actions")
+
+        if not isinstance(summary, str) or not summary.strip():
+            summary = deterministic_summary
+
+        parsed_cards = self._parse_gemini_cards(cards_payload)
+        if not parsed_cards:
+            parsed_cards = deterministic_cards
+
+        parsed_actions = self._parse_gemini_actions(actions_payload)
+        if not parsed_actions:
+            parsed_actions = deterministic_actions
+
+        return summary, parsed_cards[:4], parsed_actions[:6]
+
+    def _parse_gemini_cards(self, cards_payload: Any) -> list[InsightCard]:
+        if not isinstance(cards_payload, list):
+            return []
+
+        parsed: list[InsightCard] = []
+        for item in cards_payload:
+            if not isinstance(item, dict):
+                continue
+
+            severity_raw = str(item.get("severity", "medium")).lower()
+            if severity_raw not in {"low", "medium", "high", "critical"}:
+                severity_raw = "medium"
+
+            evidence = item.get("evidence")
+            if not isinstance(evidence, list):
+                evidence = []
+
+            title = str(item.get("title", "Security signal detected")).strip()
+            impact = str(item.get("impact", "Potential security impact identified.")).strip()
+            recommendation = str(item.get("recommendation", "Review and remediate this risk.")).strip()
+
+            parsed.append(
+                InsightCard(
+                    title=title[:160],
+                    severity=RiskLevel(severity_raw),
+                    impact=impact[:500],
+                    evidence=[str(entry)[:200] for entry in evidence[:5]],
+                    recommendation=recommendation[:300],
+                )
+            )
+
+        return parsed
+
+    def _parse_gemini_actions(self, actions_payload: Any) -> list[str]:
+        if not isinstance(actions_payload, list):
+            return []
+        actions: list[str] = []
+        for action in actions_payload[:8]:
+            if not isinstance(action, str):
+                continue
+            action = action.strip()
+            if action and action not in actions:
+                actions.append(action[:220])
+        return actions
 
     def _detect_findings(self, content: str, input_type: str, log_analysis: bool) -> list[Finding]:
         findings: list[Finding] = []

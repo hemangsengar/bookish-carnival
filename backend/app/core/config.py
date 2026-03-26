@@ -14,6 +14,11 @@ class Settings(BaseSettings):
     service_api_key: str = "local-dev-api-key"
     policy_records_threshold: int = 5000
 
+    gemini_enabled: bool = True
+    gemini_api_key: str = ""
+    gemini_model: str = "gemini-1.5-flash"
+    gemini_timeout_seconds: int = 12
+
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 
 
