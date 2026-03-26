@@ -11,6 +11,8 @@ class Settings(BaseSettings):
 
     jwt_secret: str = "change-me"
     jwt_algorithm: str = "HS256"
+    service_api_key: str = "local-dev-api-key"
+    policy_records_threshold: int = 5000
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 
