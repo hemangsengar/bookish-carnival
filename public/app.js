@@ -1,3 +1,5 @@
+/* SecureIntel AI — Frontend Application Logic */
+
 const inputType = document.getElementById('inputType');
 const fileInput = document.getElementById('fileInput');
 const contentEl = document.getElementById('content');
@@ -20,9 +22,17 @@ const visualizationEl = document.getElementById('visualization');
 let lastResult = null;
 let selectedFile = null;
 
+/* ===== Helpers ===== */
+
 function riskClass(risk) {
   return `risk-${risk}`;
 }
+
+function escapeHtml(str) {
+  return str.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+/* ===== Renderers ===== */
 
 function renderVisualization(content, findings) {
   const lines = (content || '').split('\n');
@@ -31,38 +41,63 @@ function renderVisualization(content, findings) {
     .map((line, idx) => {
       const lineNum = idx + 1;
       const isFlagged = flaggedLines.has(lineNum);
-      return `<span class="line ${isFlagged ? 'flagged' : ''}"><strong>${lineNum.toString().padStart(4, '0')}</strong>  ${line.replace(/</g, '&lt;')}</span>`;
+      return `<span class="line ${isFlagged ? 'flagged' : ''}"><strong>${lineNum
+        .toString()
+        .padStart(4, '0')}</strong>  ${escapeHtml(line)}</span>`;
     })
     .join('');
 }
 
 function renderResult(result, originalContent) {
   lastResult = result;
-  resultBadge.textContent = `${result.risk_level.toUpperCase()} • ${result.action.toUpperCase()}`;
-  resultBadge.className = `subtle-chip ${riskClass(result.risk_level)}`;
 
-  summaryEl.innerHTML = `<p><strong>${result.summary}</strong></p>`;
+  // Status badge
+  resultBadge.textContent = `${result.risk_level.toUpperCase()} · ${result.action.toUpperCase()}`;
+  resultBadge.className = `hero-stat-value ${riskClass(result.risk_level)}`;
+
+  // Summary
+  summaryEl.innerHTML = `<p><strong>${escapeHtml(result.summary)}</strong></p>`;
+
+  // KPIs
   kpisEl.innerHTML = `
-    <div>Risk Score<br /><strong>${result.risk_score}</strong></div>
-    <div>Risk Level<br /><strong class="${riskClass(result.risk_level)}">${result.risk_level.toUpperCase()}</strong></div>
-    <div>Action<br /><strong>${result.action.toUpperCase()}</strong></div>
-    <div>Findings<br /><strong>${result.findings.length}</strong></div>
+    <div class="kpi-card">
+      <span class="kpi-label">Risk Score</span>
+      <span class="kpi-value">${result.risk_score}</span>
+    </div>
+    <div class="kpi-card">
+      <span class="kpi-label">Risk Level</span>
+      <span class="kpi-value ${riskClass(result.risk_level)}">${result.risk_level.toUpperCase()}</span>
+    </div>
+    <div class="kpi-card">
+      <span class="kpi-label">Action</span>
+      <span class="kpi-value">${result.action.toUpperCase()}</span>
+    </div>
+    <div class="kpi-card">
+      <span class="kpi-label">Findings</span>
+      <span class="kpi-value">${result.findings.length}</span>
+    </div>
   `;
 
+  // Insights
   insightsEl.innerHTML = '';
-  const cards = result.insight_cards && result.insight_cards.length > 0
-    ? result.insight_cards
-    : (result.insights || []).map((insight) => ({
-        title: insight,
-        severity: result.risk_level,
-        impact: insight,
-        recommendation: 'Review and remediate based on finding context.',
-      }));
+  const cards =
+    result.insight_cards && result.insight_cards.length > 0
+      ? result.insight_cards
+      : (result.insights || []).map((insight) => ({
+          title: insight,
+          severity: result.risk_level,
+          impact: insight,
+          recommendation: 'Review and remediate based on finding context.',
+        }));
 
   cards.forEach((card) => {
     const li = document.createElement('li');
     li.classList.add('insight-card');
-    li.innerHTML = `<strong>${card.title}</strong> <span class="${riskClass(card.severity)}">(${card.severity.toUpperCase()})</span><br/>${card.impact}<br/><em>Action:</em> ${card.recommendation}`;
+    li.innerHTML = `<strong>${escapeHtml(card.title)}</strong> <span class="${riskClass(
+      card.severity
+    )}">(${card.severity.toUpperCase()})</span><br/>${escapeHtml(
+      card.impact
+    )}<br/><em>Action:</em> ${escapeHtml(card.recommendation)}`;
     insightsEl.appendChild(li);
   });
 
@@ -74,46 +109,52 @@ function renderResult(result, originalContent) {
     result.recommended_actions.forEach((action) => {
       const li = document.createElement('li');
       li.classList.add('insight-action');
-      li.textContent = `• ${action}`;
+      li.textContent = `→ ${action}`;
       insightsEl.appendChild(li);
     });
   }
 
+  // Findings table
   findingsTable.innerHTML = '';
   result.findings.forEach((finding) => {
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td>${finding.type}</td>
+      <td>${escapeHtml(finding.type)}</td>
       <td class="${riskClass(finding.risk)}">${finding.risk}</td>
-      <td>${finding.line ?? '-'}</td>
-      <td>${finding.value ?? '-'}</td>
+      <td>${finding.line ?? '—'}</td>
+      <td>${escapeHtml(finding.value ?? '—')}</td>
     `;
     findingsTable.appendChild(tr);
   });
 
+  // Preview & visualization
   previewEl.textContent = result.sanitized_preview || '';
   renderVisualization(originalContent, result.findings);
 }
 
 function setEmptyState() {
-  summaryEl.innerHTML = '<p><strong>No analysis yet.</strong> Add content or use a sample above, then click Analyze.</p>';
+  summaryEl.innerHTML =
+    '<p>No analysis yet. Add content or use a sample template above, then click <strong>Analyze</strong>.</p>';
   kpisEl.innerHTML = `
-    <div>Risk Score<br /><strong>0</strong></div>
-    <div>Risk Level<br /><strong>—</strong></div>
-    <div>Action<br /><strong>—</strong></div>
-    <div>Findings<br /><strong>0</strong></div>
+    <div class="kpi-card"><span class="kpi-label">Risk Score</span><span class="kpi-value">—</span></div>
+    <div class="kpi-card"><span class="kpi-label">Risk Level</span><span class="kpi-value">—</span></div>
+    <div class="kpi-card"><span class="kpi-label">Action</span><span class="kpi-value">—</span></div>
+    <div class="kpi-card"><span class="kpi-label">Findings</span><span class="kpi-value">0</span></div>
   `;
-  insightsEl.innerHTML = '<li class="insight-action">Insight cards will appear here after analysis.</li>';
+  insightsEl.innerHTML =
+    '<li class="insight-action">Insight cards will appear here after analysis.</li>';
   findingsTable.innerHTML = '';
   previewEl.textContent = '';
   visualizationEl.textContent = '';
-  resultBadge.textContent = 'Awaiting analysis';
-  resultBadge.className = 'subtle-chip';
+  resultBadge.textContent = 'Awaiting Input';
+  resultBadge.className = 'hero-stat-value';
 }
 
 function updateCharCount() {
   charCountEl.textContent = String(contentEl.value.length);
 }
+
+/* ===== API Calls ===== */
 
 async function analyzeJsonPayload(payload) {
   const response = await fetch('/api/analyze', {
@@ -161,9 +202,12 @@ async function setSelectedFile(file) {
   }
 }
 
+/* ===== Event Listeners ===== */
+
 analyzeBtn.addEventListener('click', async () => {
   analyzeBtn.disabled = true;
-  analyzeBtn.textContent = 'Analyzing...';
+  analyzeBtn.innerHTML =
+    '<span class="loading-spinner"></span><span>Analyzing…</span>';
 
   try {
     const currentInputType = inputType.value;
@@ -176,11 +220,12 @@ analyzeBtn.addEventListener('click', async () => {
     let result;
     let sourceContent = contentEl.value;
 
-    const file = inputType.value === 'file'
-      ? (selectedFile || (fileInput.files?.length ? fileInput.files[0] : null))
-      : null;
+    const file =
+      inputType.value === 'file'
+        ? selectedFile || (fileInput.files?.length ? fileInput.files[0] : null)
+        : null;
     if (file) {
-      sourceContent = contentEl.value || await file.text();
+      sourceContent = contentEl.value || (await file.text());
       result = await analyzeFilePayload(file, currentInputType, options);
     } else {
       result = await analyzeJsonPayload({
@@ -192,12 +237,15 @@ analyzeBtn.addEventListener('click', async () => {
 
     renderResult(result, sourceContent);
   } catch (error) {
-    summaryEl.innerHTML = `<p class="risk-critical">${error.message}</p>`;
-    resultBadge.textContent = 'Analysis error';
-    resultBadge.className = 'subtle-chip risk-critical';
+    summaryEl.innerHTML = `<p class="risk-critical">${escapeHtml(error.message)}</p>`;
+    resultBadge.textContent = 'Error';
+    resultBadge.className = 'hero-stat-value risk-critical';
   } finally {
     analyzeBtn.disabled = false;
-    analyzeBtn.textContent = 'Analyze';
+    analyzeBtn.innerHTML = `
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <span>Analyze</span>
+      <div class="btn-shimmer"></div>`;
   }
 });
 
@@ -216,7 +264,7 @@ clearBtn.addEventListener('click', () => {
   contentEl.value = '';
   fileInput.value = '';
   selectedFile = null;
-  dropHint.textContent = 'Supported: .log, .txt, .pdf, .docx';
+  dropHint.textContent = 'Supports .log, .txt, .pdf, .docx';
   updateCharCount();
   lastResult = null;
   setEmptyState();
@@ -255,22 +303,34 @@ copyResultBtn.addEventListener('click', async () => {
   if (!lastResult) return;
   try {
     await navigator.clipboard.writeText(JSON.stringify(lastResult, null, 2));
-    copyResultBtn.textContent = 'Copied';
+    copyResultBtn.innerHTML = `
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+      Copied!`;
   } catch {
     copyResultBtn.textContent = 'Copy failed';
   }
-  setTimeout(() => { copyResultBtn.textContent = 'Copy JSON'; }, 900);
+  setTimeout(() => {
+    copyResultBtn.innerHTML = `
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+      Copy JSON`;
+  }, 1200);
 });
 
 copyPreviewBtn.addEventListener('click', async () => {
   if (!previewEl.textContent) return;
   try {
     await navigator.clipboard.writeText(previewEl.textContent);
-    copyPreviewBtn.textContent = 'Copied';
+    copyPreviewBtn.innerHTML = `
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+      Copied!`;
   } catch {
     copyPreviewBtn.textContent = 'Copy failed';
   }
-  setTimeout(() => { copyPreviewBtn.textContent = 'Copy Preview'; }, 900);
+  setTimeout(() => {
+    copyPreviewBtn.innerHTML = `
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+      Copy`;
+  }, 1200);
 });
 
 contentEl.addEventListener('input', updateCharCount);
@@ -279,7 +339,7 @@ inputType.addEventListener('change', () => {
   if (inputType.value !== 'file') {
     selectedFile = null;
     fileInput.value = '';
-    dropHint.textContent = 'Supported: .log, .txt, .pdf, .docx';
+    dropHint.textContent = 'Supports .log, .txt, .pdf, .docx';
   }
 });
 
@@ -290,5 +350,6 @@ dropZone.addEventListener('keydown', (event) => {
   }
 });
 
+/* ===== Init ===== */
 setEmptyState();
 updateCharCount();

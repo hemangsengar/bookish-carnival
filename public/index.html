@@ -3,90 +3,207 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>AI Secure Data Intelligence Platform</title>
+    <meta name="description" content="AI-powered security platform for detecting sensitive data exposure, policy violations, and security risks across logs, SQL, chat, and uploaded files." />
+    <title>SecureIntel AI — Data Intelligence Platform</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
+    <!-- Animated background mesh -->
+    <div class="bg-mesh" aria-hidden="true"></div>
+    <div class="bg-grid" aria-hidden="true"></div>
+
+    <!-- Navigation -->
+    <nav class="nav" id="mainNav">
+      <div class="nav-inner">
+        <a href="/" class="nav-brand" id="navBrand">
+          <span class="nav-logo">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            </svg>
+          </span>
+          <span class="nav-title">Secure<strong>Intel</strong></span>
+        </a>
+        <div class="nav-links">
+          <span class="nav-env-badge" id="envBadge">
+            <span class="env-dot"></span>
+            Platform Active
+          </span>
+        </div>
+      </div>
+    </nav>
+
     <main class="container">
-      <section class="hero-shell">
-        <div class="hero-spotlight" aria-hidden="true"></div>
-        <div class="hero-beams" aria-hidden="true"></div>
-        <header class="hero card">
-          <div>
-            <p class="eyebrow">Secure Log & Data Risk Analysis Console</p>
-            <h1>AI Secure Data Intelligence Platform</h1>
-            <p class="subtitle">Detect sensitive data exposure, policy violations, and security risks across logs, SQL, chat, and uploaded files with clear remediation recommendations.</p>
+      <!-- Hero -->
+      <section class="hero-section" id="heroSection">
+        <div class="hero-glow" aria-hidden="true"></div>
+        <div class="hero-content">
+          <div class="hero-text">
+            <span class="hero-eyebrow">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+              AI-Powered Security Analysis
+            </span>
+            <h1>Detect. Analyze.<br/><span class="gradient-text">Protect.</span></h1>
+            <p class="hero-desc">Intelligent scanning for sensitive data exposure, policy violations, and security risks across logs, SQL queries, chat transcripts, and uploaded files.</p>
           </div>
-          <span id="resultBadge" class="status-pill">Awaiting analysis</span>
-        </header>
+          <div class="hero-stats">
+            <div class="hero-stat-card" id="statStatus">
+              <span class="hero-stat-icon status-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              </span>
+              <div>
+                <span class="hero-stat-label">Status</span>
+                <span class="hero-stat-value" id="resultBadge">Awaiting Input</span>
+              </div>
+            </div>
+            <div class="hero-stat-card" id="statEngine">
+              <span class="hero-stat-icon engine-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a10 10 0 1 0 10 10H12V2z"/><path d="M20.7 11A8.7 8.7 0 0 0 13 3.3V11h7.7z"/></svg>
+              </span>
+              <div>
+                <span class="hero-stat-label">Engine</span>
+                <span class="hero-stat-value">Gemini + Rules</span>
+              </div>
+            </div>
+          </div>
+        </div>
       </section>
 
-      <section class="card analyzer-card file-upload-card">
-        <div class="title-row">
-          <h2>Analyze Input</h2>
+      <!-- Analyzer Input Panel -->
+      <section class="glass-card analyzer-panel" id="analyzerPanel">
+        <div class="card-header">
+          <div class="card-title-group">
+            <h2>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+              Analyze Input
+            </h2>
+            <span class="card-subtitle">Paste content or upload a file for intelligent security analysis</span>
+          </div>
           <div class="template-row" id="templateRow">
-            <button type="button" class="ghost-btn template-btn" data-type="log" data-template="2026-03-10 INFO login email=admin@company.com password=admin123 api_key=sk-prod-xyz ERROR stack trace: NullPointerException at service.java:45">Log sample</button>
-            <button type="button" class="ghost-btn template-btn" data-type="sql" data-template="SELECT * FROM users WHERE email='alice@company.com' AND password='plaintext123';">SQL sample</button>
+            <button type="button" class="chip-btn template-btn" data-type="log" data-template="2026-03-10 INFO login email=admin@company.com password=admin123 api_key=sk-prod-xyz ERROR stack trace: NullPointerException at service.java:45" id="templateLog">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+              Log sample
+            </button>
+            <button type="button" class="chip-btn template-btn" data-type="sql" data-template="SELECT * FROM users WHERE email='alice@company.com' AND password='plaintext123';" id="templateSql">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+              SQL sample
+            </button>
           </div>
         </div>
 
-        <div class="grid compact-grid">
-          <label class="field">
-            Input Type
+        <div class="input-grid">
+          <label class="field-label" for="inputType">
+            <span class="field-name">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+              Input Type
+            </span>
             <select id="inputType">
-              <option value="text">text</option>
-              <option value="log" selected>log</option>
-              <option value="sql">sql</option>
-              <option value="chat">chat</option>
-              <option value="file">file</option>
+              <option value="text">Text</option>
+              <option value="log" selected>Log</option>
+              <option value="sql">SQL</option>
+              <option value="chat">Chat</option>
+              <option value="file">File</option>
             </select>
           </label>
 
-          <label class="field">
-            Upload file
-            <input id="fileInput" type="file" accept=".log,.txt,.pdf,.doc,.docx,.txt" />
+          <label class="field-label" for="fileInput">
+            <span class="field-name">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+              Upload File
+            </span>
+            <input id="fileInput" type="file" accept=".log,.txt,.pdf,.doc,.docx" />
           </label>
         </div>
 
         <div id="dropZone" class="drop-zone" role="button" tabindex="0" aria-label="Drop file here to analyze">
-          <div class="upload-icon" aria-hidden="true">⬆</div>
-          <p><strong>Drag and drop file</strong> or click to browse</p>
-          <span id="dropHint">Supported: .log, .txt, .pdf, .docx</span>
+          <div class="drop-zone-inner">
+            <div class="upload-icon-wrap" aria-hidden="true">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            </div>
+            <p><strong>Drag and drop your file here</strong></p>
+            <span class="drop-hint" id="dropHint">Supports .log, .txt, .pdf, .docx</span>
+          </div>
         </div>
 
-        <label class="field">
-          Content
-          <textarea id="content" rows="10" placeholder="Paste logs, SQL, chat, or text here..."></textarea>
-          <span class="helper-text"><span id="charCount">0</span> characters</span>
+        <label class="field-label" for="content">
+          <span class="field-name">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            Content
+          </span>
+          <textarea id="content" rows="8" placeholder="Paste logs, SQL queries, chat transcripts, or raw text here for security analysis..."></textarea>
+          <span class="char-count"><span id="charCount">0</span> characters</span>
         </label>
 
-        <div class="options">
-          <label><input id="mask" type="checkbox" checked /> Mask sensitive output</label>
-          <label><input id="blockHighRisk" type="checkbox" checked /> Block high risk</label>
-          <label><input id="logAnalysis" type="checkbox" checked /> Enable log mode</label>
+        <div class="options-row">
+          <label class="toggle-option" for="mask">
+            <input id="mask" type="checkbox" checked />
+            <span class="toggle-label">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+              Mask sensitive data
+            </span>
+          </label>
+          <label class="toggle-option" for="blockHighRisk">
+            <input id="blockHighRisk" type="checkbox" checked />
+            <span class="toggle-label">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+              Block high risk
+            </span>
+          </label>
+          <label class="toggle-option" for="logAnalysis">
+            <input id="logAnalysis" type="checkbox" checked />
+            <span class="toggle-label">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+              Log analysis mode
+            </span>
+          </label>
         </div>
 
         <div class="action-row">
-          <button id="analyzeBtn" class="moving-btn">Analyze</button>
-          <button id="clearBtn" type="button" class="ghost-btn">Clear</button>
-          <button id="copyResultBtn" type="button" class="ghost-btn">Copy JSON</button>
+          <button id="analyzeBtn" class="primary-btn" type="button">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <span>Analyze</span>
+            <div class="btn-shimmer"></div>
+          </button>
+          <button id="clearBtn" type="button" class="ghost-btn">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+            Clear
+          </button>
+          <button id="copyResultBtn" type="button" class="ghost-btn">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            Copy JSON
+          </button>
         </div>
       </section>
 
-      <section class="bento-grid">
-        <article class="card bento-item bento-overview">
-          <h2>Overview</h2>
-          <div id="summary" class="summary"></div>
+      <!-- Analysis Results Bento Grid -->
+      <section class="bento-grid" id="resultsGrid">
+        <!-- Overview -->
+        <article class="glass-card bento-item bento-overview" id="overviewCard">
+          <h2>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></svg>
+            Overview
+          </h2>
+          <div id="summary" class="summary-box"></div>
           <div class="kpis" id="kpis"></div>
         </article>
 
-        <article class="card bento-item bento-insights">
-          <h2>Insights & Recommended Actions</h2>
+        <!-- Insights -->
+        <article class="glass-card bento-item bento-insights" id="insightsCard">
+          <h2>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+            Insights & Actions
+          </h2>
           <ul id="insights" class="insights-list"></ul>
         </article>
 
-        <article class="card bento-item bento-findings">
-          <h2>Findings</h2>
+        <!-- Findings -->
+        <article class="glass-card bento-item bento-findings" id="findingsCard">
+          <h2>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            Findings
+          </h2>
           <div class="table-wrap">
             <table>
               <thead>
@@ -97,19 +214,35 @@
           </div>
         </article>
 
-        <article class="card bento-item bento-preview">
-          <div class="title-row compact-title">
-            <h2>Sanitized Preview</h2>
-            <button id="copyPreviewBtn" type="button" class="ghost-btn">Copy Preview</button>
+        <!-- Sanitized Preview -->
+        <article class="glass-card bento-item bento-preview" id="previewCard">
+          <div class="card-header compact-header">
+            <h2>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+              Sanitized Preview
+            </h2>
+            <button id="copyPreviewBtn" type="button" class="ghost-btn small-btn">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+              Copy
+            </button>
           </div>
           <pre id="preview"></pre>
         </article>
 
-        <article class="card bento-item bento-visualization">
-          <h2>Log Visualization</h2>
+        <!-- Log Visualization -->
+        <article class="glass-card bento-item bento-visualization" id="visualizationCard">
+          <h2>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+            Log Visualization
+          </h2>
           <pre id="visualization"></pre>
         </article>
       </section>
+
+      <!-- Footer -->
+      <footer class="footer">
+        <p>SecureIntel AI — Powered by Gemini + Deterministic Rule Engine</p>
+      </footer>
     </main>
 
     <script src="/app.js"></script>
