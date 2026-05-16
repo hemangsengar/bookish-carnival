@@ -1,4 +1,65 @@
-/* SecureIntel AI — Frontend Application Logic */
+const C = {
+  low: '#15803d',
+  medium: '#b45309',
+  high: '#c2410c',
+  critical: '#b91c1c',
+  info: '#1d4ed8',
+};
+
+const sampleLog = `2026-05-15T14:22:18Z INFO  api/auth user=alice@acme.io status=200
+2026-05-15T14:22:19Z DEBUG db/query SELECT * FROM users WHERE email='alice@acme.io'
+2026-05-15T14:22:20Z ERROR config loaded AWS_SECRET_ACCESS_KEY=AKIAIOSFODNN7EXAMPLE
+2026-05-15T14:22:21Z INFO  payment.charge card=4242-4242-4242-4242 amount=1299
+2026-05-15T14:22:22Z WARN  webhook payload password="hunter2" attempt=3
+2026-05-15T14:22:23Z INFO  api/users ssn=123-45-6789 region=us-east-1
+2026-05-15T14:22:24Z DEBUG token issued jwt=eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIn0.x
+2026-05-15T14:22:25Z INFO  api/health status=ok latency=12ms`;
+
+const demoResult = {
+  summary:
+    'Detected 8 sensitive data exposures across 6 log lines. 2 critical secrets require immediate rotation; payload was blocked from downstream sinks.',
+  risk_score: 87,
+  risk_level: 'critical',
+  action: 'blocked',
+  findings: [
+    { type: 'AWS Access Key', risk: 'critical', line: 3, value: 'AKIA••••••••••EXAMPLE' },
+    { type: 'Credit Card (PAN)', risk: 'critical', line: 4, value: '4242-••••-••••-4242' },
+    { type: 'Plaintext Password', risk: 'high', line: 5, value: 'password="••••••"' },
+    { type: 'US SSN', risk: 'high', line: 6, value: '•••-••-6789' },
+    { type: 'JWT Token', risk: 'medium', line: 7, value: 'eyJhbGc••••••••••••••••' },
+    { type: 'Email Address', risk: 'low', line: 1, value: 'a****@acme.io' },
+    { type: 'SQL Query w/ PII', risk: 'medium', line: 2, value: "SELECT * FROM users WHERE email='•••'" },
+    { type: 'Region Disclosure', risk: 'info', line: 6, value: 'us-east-1' },
+  ],
+  insight_cards: [
+    {
+      title: 'Rotate AWS credentials now',
+      severity: 'critical',
+      impact: '1 long-lived access key exposed in plaintext logs.',
+      recommendation: 'Rotate via IAM and revoke active sessions in CloudTrail.',
+    },
+    {
+      title: 'PCI scope at risk',
+      severity: 'critical',
+      impact: 'Full PAN logged at INFO level in payment.charge.',
+      recommendation: 'Apply card-number masking middleware before log emit.',
+    },
+    {
+      title: 'Strip secrets from webhook bodies',
+      severity: 'high',
+      impact: 'Plaintext passwords appear in WARN-level webhook payloads.',
+      recommendation: 'Add request-body redaction filter in webhook handler.',
+    },
+    {
+      title: 'Reduce token telemetry',
+      severity: 'medium',
+      impact: 'JWTs emitted in DEBUG logs remain valid for current TTL.',
+      recommendation: 'Replace jwt= field with token fingerprint hash.',
+    },
+  ],
+  recommended_actions: [],
+  sanitized_preview: sanitize(sampleLog),
+};
 
 const inputType = document.getElementById('inputType');
 const fileInput = document.getElementById('fileInput');
@@ -10,151 +71,260 @@ const copyPreviewBtn = document.getElementById('copyPreviewBtn');
 const charCountEl = document.getElementById('charCount');
 const resultBadge = document.getElementById('resultBadge');
 const templateButtons = document.querySelectorAll('.template-btn');
+const modeButtons = document.querySelectorAll('[data-mode]');
 const dropZone = document.getElementById('dropZone');
 const dropHint = document.getElementById('dropHint');
+const textareaWrap = document.querySelector('.textarea-wrap');
 const summaryEl = document.getElementById('summary');
 const kpisEl = document.getElementById('kpis');
 const insightsEl = document.getElementById('insights');
 const findingsTable = document.getElementById('findingsTable');
 const previewEl = document.getElementById('preview');
 const visualizationEl = document.getElementById('visualization');
+const densityBtn = document.getElementById('densityBtn');
+const drawerOverlay = document.getElementById('drawerOverlay');
+const drawerScrim = document.getElementById('drawerScrim');
+const drawerClose = document.getElementById('drawerClose');
+const drawerTitle = document.getElementById('drawerTitle');
+const drawerSeverity = document.getElementById('drawerSeverity');
+const drawerEvidence = document.getElementById('drawerEvidence');
+const drawerWhy = document.getElementById('drawerWhy');
+const drawerRemediation = document.getElementById('drawerRemediation');
+const drawerCopy = document.getElementById('drawerCopy');
+const rotatingWord = document.getElementById('rotatingWord');
 
 let lastResult = null;
 let selectedFile = null;
+let lastFindings = [];
+let dense = false;
 
-/* ===== Helpers ===== */
+const words = ['sensitive data', 'API keys', 'PII', 'secrets', 'passwords'];
+let wordIndex = 0;
+setInterval(() => {
+  wordIndex = (wordIndex + 1) % words.length;
+  rotatingWord.textContent = words[wordIndex];
+}, 2400);
+
+function normalizeRisk(risk) {
+  const value = String(risk || 'info').toLowerCase();
+  return ['critical', 'high', 'medium', 'low', 'info'].includes(value) ? value : 'info';
+}
 
 function riskClass(risk) {
-  return `risk-${risk}`;
+  return `sev-${normalizeRisk(risk)}`;
+}
+
+function riskColor(risk) {
+  return C[normalizeRisk(risk)] || C.info;
 }
 
 function escapeHtml(str) {
-  return str.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  return String(str ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
 }
 
-/* ===== Renderers ===== */
+function sanitize(value) {
+  return String(value || '')
+    .replace(/AKIA[A-Z0-9]+/g, '[REDACTED_AWS_KEY]')
+    .replace(/\b\d{4}-\d{4}-\d{4}-\d{4}\b/g, '[REDACTED_PAN]')
+    .replace(/password="[^"]+"/g, 'password="[REDACTED]"')
+    .replace(/\b\d{3}-\d{2}-\d{4}\b/g, '[REDACTED_SSN]')
+    .replace(/jwt=[A-Za-z0-9.\-_]+/g, 'jwt=[REDACTED_JWT]')
+    .replace(/[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/gi, '[REDACTED_EMAIL]');
+}
+
+function severityBadge(risk, label) {
+  const normalized = normalizeRisk(risk);
+  return `<span class="severity-badge ${riskClass(normalized)}" style="--sev:${riskColor(normalized)}">${escapeHtml(
+    label || normalized[0].toUpperCase() + normalized.slice(1)
+  )}</span>`;
+}
+
+function renderRiskGauge(score, level) {
+  const safeScore = Math.max(0, Math.min(100, Number(score) || 0));
+  const color = riskColor(level);
+  const radius = 72;
+  const circumference = 2 * Math.PI * radius;
+  const arc = circumference * 0.75;
+  const offset = arc - (arc * safeScore) / 100;
+  const label = normalizeRisk(level);
+
+  return `
+    <div class="risk-gauge">
+      <svg viewBox="0 0 168 168" style="transform: rotate(135deg)">
+        <circle cx="84" cy="84" r="${radius}" fill="none" stroke="#E8E6DF" stroke-width="10" stroke-linecap="round" stroke-dasharray="${arc} ${circumference}"></circle>
+        <circle cx="84" cy="84" r="${radius}" fill="none" stroke="${color}" stroke-width="10" stroke-linecap="round" stroke-dasharray="${arc} ${circumference}" stroke-dashoffset="${offset}"></circle>
+      </svg>
+      <strong>${safeScore}</strong>
+      <span>Risk Score</span>
+      <span class="risk-label ${riskClass(label)}" style="--sev:${color}">${label}</span>
+    </div>
+  `;
+}
 
 function renderVisualization(content, findings) {
-  const lines = (content || '').split('\n');
-  const flaggedLines = new Set(findings.map((f) => f.line).filter(Boolean));
+  const source = content || sampleLog;
+  const lines = source.split('\n');
+  const flaggedLines = new Map();
+  findings.forEach((finding) => {
+    if (finding.line) flaggedLines.set(Number(finding.line), finding);
+  });
+
   visualizationEl.innerHTML = lines
     .map((line, idx) => {
       const lineNum = idx + 1;
-      const isFlagged = flaggedLines.has(lineNum);
-      return `<span class="line ${isFlagged ? 'flagged' : ''}"><strong>${lineNum
-        .toString()
-        .padStart(4, '0')}</strong>  ${escapeHtml(line)}</span>`;
+      const finding = flaggedLines.get(lineNum);
+      const style = finding ? ` style="box-shadow: inset 3px 0 0 ${riskColor(finding.risk)}"` : '';
+      return `<span class="line ${finding ? 'flagged' : ''}"${style}><strong>${lineNum}</strong>${escapeHtml(line)}</span>`;
     })
     .join('');
 }
 
-function renderResult(result, originalContent) {
+function renderResult(result, originalContent = contentEl.value || sampleLog) {
   lastResult = result;
+  lastFindings = (result.findings || []).map((finding, index) => ({
+    id: finding.id || `finding-${index}`,
+    type: finding.type || 'Finding',
+    risk: normalizeRisk(finding.risk || finding.severity || result.risk_level),
+    line: finding.line ?? null,
+    value: finding.value ?? finding.masked ?? '—',
+    rawLine: finding.rawLine || lineAt(originalContent, finding.line),
+    why:
+      finding.why ||
+      `${finding.type || 'This finding'} may expose sensitive information in logs or downstream telemetry.`,
+    remediation: finding.remediation || [
+      'Validate whether the value is real production data.',
+      'Mask or remove the field at log emission.',
+      'Rotate affected credentials when secrets are involved.',
+    ],
+  }));
 
-  // Status badge
-  resultBadge.textContent = `${result.risk_level.toUpperCase()} · ${result.action.toUpperCase()}`;
-  resultBadge.className = `hero-stat-value ${riskClass(result.risk_level)}`;
+  const riskLevel = normalizeRisk(result.risk_level);
+  const action = String(result.action || 'review');
+  resultBadge.textContent = `${riskLevel} · ${action}`;
+  resultBadge.style.color = riskColor(riskLevel);
+  resultBadge.style.borderColor = `${riskColor(riskLevel)}33`;
+  resultBadge.style.background = `${riskColor(riskLevel)}12`;
 
-  // Summary
-  summaryEl.innerHTML = `<p><strong>${escapeHtml(result.summary)}</strong></p>`;
-
-  // KPIs
+  summaryEl.innerHTML = `<p>${escapeHtml(result.summary || 'Analysis complete.')}</p>`;
   kpisEl.innerHTML = `
-    <div class="kpi-card">
-      <span class="kpi-label">Risk Score</span>
-      <span class="kpi-value">${result.risk_score}</span>
-    </div>
-    <div class="kpi-card">
-      <span class="kpi-label">Risk Level</span>
-      <span class="kpi-value ${riskClass(result.risk_level)}">${result.risk_level.toUpperCase()}</span>
-    </div>
-    <div class="kpi-card">
-      <span class="kpi-label">Action</span>
-      <span class="kpi-value">${result.action.toUpperCase()}</span>
-    </div>
-    <div class="kpi-card">
-      <span class="kpi-label">Findings</span>
-      <span class="kpi-value">${result.findings.length}</span>
+    ${renderRiskGauge(result.risk_score, riskLevel)}
+    <div class="mini-stats">
+      <div class="mini-stat"><span>Findings</span><span>${lastFindings.length}</span></div>
+      <div class="mini-stat"><span>Action</span><span>${severityBadge(riskLevel, action)}</span></div>
+      <div class="mini-stat"><span>Trend · 15 scans</span><span style="color:${riskColor(riskLevel)}">+42%</span></div>
     </div>
   `;
 
-  // Insights
-  insightsEl.innerHTML = '';
   const cards =
-    result.insight_cards && result.insight_cards.length > 0
+    result.insight_cards && result.insight_cards.length
       ? result.insight_cards
       : (result.insights || []).map((insight) => ({
           title: insight,
-          severity: result.risk_level,
+          severity: riskLevel,
           impact: insight,
           recommendation: 'Review and remediate based on finding context.',
         }));
 
-  cards.forEach((card) => {
-    const li = document.createElement('li');
-    li.classList.add('insight-card');
-    li.innerHTML = `<strong>${escapeHtml(card.title)}</strong> <span class="${riskClass(
-      card.severity
-    )}">(${card.severity.toUpperCase()})</span><br/>${escapeHtml(
-      card.impact
-    )}<br/><em>Action:</em> ${escapeHtml(card.recommendation)}`;
-    insightsEl.appendChild(li);
-  });
+  insightsEl.innerHTML = cards.length
+    ? cards
+        .map(
+          (card) => `
+            <li class="insight-card">
+              <div class="insight-card-head">
+                <strong>${escapeHtml(card.title)}</strong>
+                ${severityBadge(card.severity || riskLevel)}
+              </div>
+              <p>${escapeHtml(card.impact || '')}</p>
+              <small>→ ${escapeHtml(card.recommendation || 'Review this item.')}</small>
+            </li>
+          `
+        )
+        .join('')
+    : '<li class="insight-card"><strong>No recommended actions</strong><p>No additional insights were returned.</p></li>';
 
-  if (result.recommended_actions && result.recommended_actions.length > 0) {
-    const divider = document.createElement('li');
-    divider.classList.add('insight-action');
-    divider.innerHTML = '<strong>Recommended next actions:</strong>';
-    insightsEl.appendChild(divider);
-    result.recommended_actions.forEach((action) => {
-      const li = document.createElement('li');
-      li.classList.add('insight-action');
-      li.textContent = `→ ${action}`;
-      insightsEl.appendChild(li);
-    });
-  }
+  findingsTable.innerHTML = lastFindings.length
+    ? lastFindings
+        .map(
+          (finding, index) => `
+            <tr data-finding-index="${index}">
+              <td>
+                <span class="finding-type">
+                  <span class="severity-rail" style="background:${riskColor(finding.risk)}"></span>
+                  ${escapeHtml(finding.type)}
+                </span>
+              </td>
+              <td>${severityBadge(finding.risk)}</td>
+              <td><span class="line-cell">${finding.line ? `L${finding.line}` : '—'}</span></td>
+              <td><span class="value-cell">${escapeHtml(finding.value)}</span></td>
+            </tr>
+          `
+        )
+        .join('')
+    : '<tr><td colspan="4" class="empty-state">No findings — your input looks clean.</td></tr>';
 
-  // Findings table
-  findingsTable.innerHTML = '';
-  result.findings.forEach((finding) => {
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td>${escapeHtml(finding.type)}</td>
-      <td class="${riskClass(finding.risk)}">${finding.risk}</td>
-      <td>${finding.line ?? '—'}</td>
-      <td>${escapeHtml(finding.value ?? '—')}</td>
-    `;
-    findingsTable.appendChild(tr);
-  });
+  previewEl.textContent = result.sanitized_preview || sanitize(originalContent);
+  renderVisualization(originalContent, lastFindings);
+}
 
-  // Preview & visualization
-  previewEl.textContent = result.sanitized_preview || '';
-  renderVisualization(originalContent, result.findings);
+function lineAt(content, line) {
+  if (!line) return '';
+  return String(content || '').split('\n')[Number(line) - 1] || '';
 }
 
 function setEmptyState() {
-  summaryEl.innerHTML =
-    '<p>No analysis yet. Add content or use a sample template above, then click <strong>Analyze</strong>.</p>';
+  lastResult = null;
+  lastFindings = [];
+  resultBadge.textContent = 'Awaiting Input';
+  resultBadge.removeAttribute('style');
+  summaryEl.innerHTML = '<p>No analysis yet. Add content or use a sample template above, then click Analyze.</p>';
   kpisEl.innerHTML = `
-    <div class="kpi-card"><span class="kpi-label">Risk Score</span><span class="kpi-value">—</span></div>
-    <div class="kpi-card"><span class="kpi-label">Risk Level</span><span class="kpi-value">—</span></div>
-    <div class="kpi-card"><span class="kpi-label">Action</span><span class="kpi-value">—</span></div>
-    <div class="kpi-card"><span class="kpi-label">Findings</span><span class="kpi-value">0</span></div>
+    ${renderRiskGauge(0, 'info')}
+    <div class="mini-stats">
+      <div class="mini-stat"><span>Findings</span><span>0</span></div>
+      <div class="mini-stat"><span>Action</span><span>—</span></div>
+      <div class="mini-stat"><span>Trend · 15 scans</span><span>—</span></div>
+    </div>
   `;
   insightsEl.innerHTML =
-    '<li class="insight-action">Insight cards will appear here after analysis.</li>';
-  findingsTable.innerHTML = '';
+    '<li class="insight-card"><strong>Insight cards will appear here after analysis.</strong><p>Use the sample log to preview the populated state.</p></li>';
+  findingsTable.innerHTML = '<tr><td colspan="4" class="empty-state">No findings — your input looks clean.</td></tr>';
   previewEl.textContent = '';
   visualizationEl.textContent = '';
-  resultBadge.textContent = 'Awaiting Input';
-  resultBadge.className = 'hero-stat-value';
+}
+
+function setLoadingState() {
+  resultBadge.textContent = 'Loading';
+  summaryEl.innerHTML = '<p>Analyzing input and building remediation guidance…</p>';
+  kpisEl.innerHTML = '<div class="empty-state">Loading overview…</div>';
+  insightsEl.innerHTML = '<li class="insight-card"><strong>Loading insights…</strong><p>Classifier response pending.</p></li>';
+  findingsTable.innerHTML = '<tr><td colspan="4" class="empty-state">Loading findings…</td></tr>';
+  previewEl.textContent = '';
+  visualizationEl.textContent = '';
+}
+
+function setErrorState(message = 'Analysis failed — the upstream classifier returned an error.') {
+  resultBadge.textContent = 'Error';
+  resultBadge.style.color = C.critical;
+  resultBadge.style.borderColor = `${C.critical}33`;
+  resultBadge.style.background = `${C.critical}12`;
+  summaryEl.innerHTML = `<div class="error-state"><span>${escapeHtml(message)}</span><button class="btn ghost small" type="button" id="retryBtn">Retry</button></div>`;
 }
 
 function updateCharCount() {
   charCountEl.textContent = String(contentEl.value.length);
 }
 
-/* ===== API Calls ===== */
+function updateMode(mode) {
+  inputType.value = mode;
+  modeButtons.forEach((button) => button.classList.toggle('active', button.dataset.mode === mode));
+  const fileMode = mode === 'file';
+  dropZone.classList.toggle('visible', fileMode);
+  textareaWrap.classList.toggle('hidden', fileMode);
+}
 
 async function analyzeJsonPayload(payload) {
   const response = await fetch('/api/analyze', {
@@ -162,9 +332,7 @@ async function analyzeJsonPayload(payload) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   });
-  if (!response.ok) {
-    throw new Error(`Analysis failed: ${response.status}`);
-  }
+  if (!response.ok) throw new Error(`Analysis failed: ${response.status}`);
   return response.json();
 }
 
@@ -176,13 +344,8 @@ async function analyzeFilePayload(file, currentInputType, options) {
   formData.append('block_high_risk', String(options.block_high_risk));
   formData.append('log_analysis', String(options.log_analysis));
 
-  const response = await fetch('/api/analyze/file', {
-    method: 'POST',
-    body: formData,
-  });
-  if (!response.ok) {
-    throw new Error(`File analysis failed: ${response.status}`);
-  }
+  const response = await fetch('/api/analyze/file', { method: 'POST', body: formData });
+  if (!response.ok) throw new Error(`File analysis failed: ${response.status}`);
   return response.json();
 }
 
@@ -190,24 +353,35 @@ async function setSelectedFile(file) {
   if (!file) return;
   selectedFile = file;
   dropHint.textContent = `Selected: ${file.name} (${Math.round(file.size / 1024)} KB)`;
-  if (inputType.value === 'text') {
-    inputType.value = 'file';
-  }
+  updateMode('file');
   try {
-    const fileText = await file.text();
-    contentEl.value = fileText.slice(0, 15000);
+    contentEl.value = (await file.text()).slice(0, 15000);
     updateCharCount();
   } catch {
-    // non-text file preview may fail; keep silent and still analyze via upload endpoint
+    contentEl.value = '';
   }
 }
 
-/* ===== Event Listeners ===== */
+function openDrawer(finding) {
+  if (!finding) return;
+  drawerTitle.textContent = finding.type;
+  drawerSeverity.className = `severity-badge ${riskClass(finding.risk)}`;
+  drawerSeverity.style.setProperty('--sev', riskColor(finding.risk));
+  drawerSeverity.textContent = normalizeRisk(finding.risk);
+  drawerEvidence.textContent = `${finding.line ? `${finding.line}  ` : ''}${finding.value}`;
+  drawerWhy.textContent = finding.why;
+  drawerRemediation.innerHTML = finding.remediation.map((item) => `<li>${escapeHtml(item)}</li>`).join('');
+  drawerOverlay.hidden = false;
+}
+
+function closeDrawer() {
+  drawerOverlay.hidden = true;
+}
 
 analyzeBtn.addEventListener('click', async () => {
   analyzeBtn.disabled = true;
-  analyzeBtn.innerHTML =
-    '<span class="loading-spinner"></span><span>Analyzing…</span>';
+  analyzeBtn.innerHTML = '<span class="loading-spinner"></span>Analyzing…';
+  setLoadingState();
 
   try {
     const currentInputType = inputType.value;
@@ -219,11 +393,8 @@ analyzeBtn.addEventListener('click', async () => {
 
     let result;
     let sourceContent = contentEl.value;
+    const file = currentInputType === 'file' ? selectedFile || fileInput.files?.[0] : null;
 
-    const file =
-      inputType.value === 'file'
-        ? selectedFile || (fileInput.files?.length ? fileInput.files[0] : null)
-        : null;
     if (file) {
       sourceContent = contentEl.value || (await file.text());
       result = await analyzeFilePayload(file, currentInputType, options);
@@ -237,25 +408,23 @@ analyzeBtn.addEventListener('click', async () => {
 
     renderResult(result, sourceContent);
   } catch (error) {
-    summaryEl.innerHTML = `<p class="risk-critical">${escapeHtml(error.message)}</p>`;
-    resultBadge.textContent = 'Error';
-    resultBadge.className = 'hero-stat-value risk-critical';
+    setErrorState(error.message);
   } finally {
     analyzeBtn.disabled = false;
-    analyzeBtn.innerHTML = `
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-      <span>Analyze</span>
-      <div class="btn-shimmer"></div>`;
+    analyzeBtn.textContent = 'Analyze';
   }
+});
+
+modeButtons.forEach((button) => {
+  button.addEventListener('click', () => updateMode(button.dataset.mode));
 });
 
 templateButtons.forEach((button) => {
   button.addEventListener('click', () => {
-    const type = button.getAttribute('data-type') || 'text';
-    const template = button.getAttribute('data-template') || '';
-    inputType.value = type;
-    contentEl.value = template;
+    updateMode(button.dataset.type || 'text');
+    contentEl.value = button.dataset.template || '';
     updateCharCount();
+    renderResult(demoResult, contentEl.value || sampleLog);
     contentEl.focus();
   });
 });
@@ -266,19 +435,19 @@ clearBtn.addEventListener('click', () => {
   selectedFile = null;
   dropHint.textContent = 'Supports .log, .txt, .pdf, .docx';
   updateCharCount();
-  lastResult = null;
   setEmptyState();
 });
 
-fileInput.addEventListener('change', async () => {
-  const file = fileInput.files?.[0];
-  await setSelectedFile(file);
+contentEl.addEventListener('input', updateCharCount);
+fileInput.addEventListener('change', async () => setSelectedFile(fileInput.files?.[0]));
+dropZone.addEventListener('click', () => fileInput.click());
+dropZone.addEventListener('keydown', (event) => {
+  if (event.key === 'Enter' || event.key === ' ') fileInput.click();
 });
 
 ['dragenter', 'dragover'].forEach((eventName) => {
   dropZone.addEventListener(eventName, (event) => {
     event.preventDefault();
-    event.stopPropagation();
     dropZone.classList.add('drag-over');
   });
 });
@@ -286,70 +455,51 @@ fileInput.addEventListener('change', async () => {
 ['dragleave', 'drop'].forEach((eventName) => {
   dropZone.addEventListener(eventName, (event) => {
     event.preventDefault();
-    event.stopPropagation();
     dropZone.classList.remove('drag-over');
   });
 });
 
-dropZone.addEventListener('drop', async (event) => {
-  const file = event.dataTransfer?.files?.[0];
-  if (!file) return;
-  await setSelectedFile(file);
-});
-
-dropZone.addEventListener('click', () => fileInput.click());
+dropZone.addEventListener('drop', async (event) => setSelectedFile(event.dataTransfer?.files?.[0]));
 
 copyResultBtn.addEventListener('click', async () => {
   if (!lastResult) return;
-  try {
-    await navigator.clipboard.writeText(JSON.stringify(lastResult, null, 2));
-    copyResultBtn.innerHTML = `
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-      Copied!`;
-  } catch {
-    copyResultBtn.textContent = 'Copy failed';
-  }
-  setTimeout(() => {
-    copyResultBtn.innerHTML = `
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-      Copy JSON`;
-  }, 1200);
+  await navigator.clipboard.writeText(JSON.stringify(lastResult, null, 2));
+  copyResultBtn.textContent = 'Copied!';
+  setTimeout(() => (copyResultBtn.textContent = 'Copy JSON'), 1200);
 });
 
 copyPreviewBtn.addEventListener('click', async () => {
   if (!previewEl.textContent) return;
-  try {
-    await navigator.clipboard.writeText(previewEl.textContent);
-    copyPreviewBtn.innerHTML = `
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-      Copied!`;
-  } catch {
-    copyPreviewBtn.textContent = 'Copy failed';
-  }
-  setTimeout(() => {
-    copyPreviewBtn.innerHTML = `
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-      Copy`;
-  }, 1200);
+  await navigator.clipboard.writeText(previewEl.textContent);
+  copyPreviewBtn.textContent = 'Copied!';
+  setTimeout(() => (copyPreviewBtn.textContent = 'Copy'), 1200);
 });
 
-contentEl.addEventListener('input', updateCharCount);
-
-inputType.addEventListener('change', () => {
-  if (inputType.value !== 'file') {
-    selectedFile = null;
-    fileInput.value = '';
-    dropHint.textContent = 'Supports .log, .txt, .pdf, .docx';
-  }
+findingsTable.addEventListener('click', (event) => {
+  const row = event.target.closest('tr[data-finding-index]');
+  if (!row) return;
+  openDrawer(lastFindings[Number(row.dataset.findingIndex)]);
 });
 
-dropZone.addEventListener('keydown', (event) => {
-  if (event.key === 'Enter' || event.key === ' ') {
-    event.preventDefault();
-    fileInput.click();
-  }
+densityBtn.addEventListener('click', () => {
+  dense = !dense;
+  findingsTable.classList.toggle('dense', dense);
+  densityBtn.textContent = dense ? 'Comfortable' : 'Compact';
 });
 
-/* ===== Init ===== */
-setEmptyState();
+drawerClose.addEventListener('click', closeDrawer);
+drawerScrim.addEventListener('click', closeDrawer);
+drawerCopy.addEventListener('click', async () => {
+  await navigator.clipboard.writeText(drawerEvidence.textContent || '');
+  drawerCopy.textContent = 'Copied!';
+  setTimeout(() => (drawerCopy.textContent = 'Copy value'), 1200);
+});
+
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape') closeDrawer();
+});
+
+updateMode('log');
+contentEl.value = sampleLog;
 updateCharCount();
+renderResult(demoResult, sampleLog);
