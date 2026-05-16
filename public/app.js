@@ -257,9 +257,9 @@ function renderResult(result, originalContent = contentEl.value || sampleLog) {
                   ${escapeHtml(finding.type)}
                 </span>
               </td>
-              <td>${severityBadge(finding.risk)}</td>
-              <td><span class="line-cell">${finding.line ? `L${finding.line}` : '—'}</span></td>
-              <td><span class="value-cell">${escapeHtml(finding.value)}</span></td>
+              <td data-label="Risk">${severityBadge(finding.risk)}</td>
+              <td data-label="Line"><span class="line-cell">${finding.line ? `L${finding.line}` : '—'}</span></td>
+              <td data-label="Value"><span class="value-cell">${escapeHtml(finding.value)}</span></td>
             </tr>
           `
         )
